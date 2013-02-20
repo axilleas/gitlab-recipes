@@ -1,29 +1,30 @@
 # GITLAB
 # Maintainer: @yin8086
-# App Version: 4.1
+# App Version: 5.0
 
 # Modified from nginx http version
 # Modified from http://blog.phusion.nl/2012/04/21/tutorial-setting-up-gitlab-on-debian-6/
 
 # You need from run openssl to generate the ssl certificate.
+# $ cd /etc/nginx
 # $ sudo openssl req -new -x509 -nodes -days 3560 -out gitlab.crt -keyout gitlab.key
 # $ sudo chmod o-r gitlab.key
  
 upstream gitlab {
-  server unix:/home/gitlab/gitlab/tmp/sockets/gitlab.socket;
+  server unix:/home/git/gitlab/tmp/sockets/gitlab.socket;
 }
 
 # This is a normal HTTP host which redirects all traffic to the HTTPS host.
 server {
-    listen       80;
-    server_name Domain_NAME;
-    root /nowhere;
-    rewrite ^ https://gitlab.stardrad.com$request_uri permanent;
+    listen SERVER_IP:80;         # e.g., listen 192.168.1.1:80;
+    server_name SERVER_FQDN;     # e.g., server_name gitlab.example.com;
+    root /home/git/gitlab/public;
+    rewrite ^ https://gitlab.example.com$request_uri permanent;
 }
 server {
     listen 443;
     server_name Domain_NAME;
-    root /home/gitlab/gitlab/public;
+    root /home/git/gitlab/public;
     
     ssl on;
     ssl_certificate gitlab.crt;
