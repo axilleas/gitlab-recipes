@@ -16,10 +16,10 @@ upstream gitlab {
 
 # This is a normal HTTP host which redirects all traffic to the HTTPS host.
 server {
-    listen SERVER_IP:80;         # e.g., listen 192.168.1.1:80;
+    listen 80;                   # e.g., listen 192.168.1.1:80;
     server_name SERVER_FQDN;     # e.g., server_name gitlab.example.com;
     root /home/git/gitlab/public;
-    rewrite ^ https://gitlab.example.com$request_uri permanent;
+    rewrite ^ https://SERVER_FQDN$request_uri permanent;
 }
 server {
     listen 443;

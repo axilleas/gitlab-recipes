@@ -20,17 +20,17 @@ RUBY_DOCS_ENABLED=False
 DB=mysql
 
 # database name
-DB_NAME=gitlabhq_production
+DB_NAME=gitlab_production
 
 DB_ROOT_PASSWD=
-DB_GITLAB_PASSWD=
-DB_GITLAB_USERNAME=
+DB_GITLAB_PASSWD=123
+DB_GITLAB_USERNAME=gitlab
 
 # Set branch to pull from
 BRANCH=master
 
 # Fully-qualified domain name
-FQDN=
+FQDN=gitlab.lan
 
 
 ##############################
@@ -48,12 +48,14 @@ source /root/.bashrc
 #####################################
 ## 3. Create a git user for Gitlab ##
 #####################################
-
+echo "Creating git user"
 useradd --create-home --comment 'GitLab' git
 
 #####################
 ## 3. GitLab shell ##
 #####################
+
+echo "Configuring gitlab-shell"
 
 # Login as git 
 su - git
@@ -76,32 +78,32 @@ cd /home/git
 sudo -u git -H git clone https://github.com/gitlabhq/gitlabhq.git gitlab
 cd gitlab/
    
-# Checkout to stable release
+echo "Checkout to stable release"
 sudo -u git -H git checkout $BRANCH
 
-# Copy the example GitLab config
+ehco "Copying the example GitLab config"
 sudo -u git -H cp config/gitlab.yml.example config/gitlab.yml
 
-# Change "localhost" to the fully-qualified domain name 
+echo "Changing "localhost" to the fully-qualified domain name"
 sed -i "s/localhost/$FQDN/g" config/gitlab.yml
 
-# Make sure GitLab can write to the log/ and tmp/ directories
+echo "Make sure GitLab can write to the log/ and tmp/ directories"
 chown -R git log/
 chown -R git tmp/
 chmod -R u+rwX  log/
 chmod -R u+rwX  tmp/
 
-# Create directory for satellites
+echo "Create directory for satellites"
 sudo -u git -H mkdir /home/git/gitlab-satellites
 
-# Create directory for pids and make sure GitLab can write to it
+echo "Creating directory for pids and make sure GitLab can write to it"
 sudo -u git -H mkdir tmp/pids/
 sudo chmod -R u+rwX  tmp/pids/
  
-# Copy the example Unicorn config
+echo "Copying the example Unicorn config"
 sudo -u git -H cp config/unicorn.rb.example config/unicorn.rb
 
-# Start redis server
+echo "Starting redis server"
 systemctl enable redis
 systemctl start redis
 
@@ -118,6 +120,7 @@ gem install charlock_holmes --version '0.6.9'
 if [[ $DB -eq 'mysql' ]]; then
 
     pacman -S --needed --noconfirm mysql
+    echo "Set mysql admin password before procceding"
     sudo -u git cp config/database.yml.mysql config/database.yml
     sed -i "s/gitlabhq_production/$DB_NAME/" config/database.yml
     sed -i "s/root/$DB_GITLAB_USERNAME/" config/database.yml
@@ -156,17 +159,16 @@ sudo -u git -H bundle exec rake gitlab:setup RAILS_ENV=production
 # 7. Nginx
 
 ## Installation
-pacman -S nginx
+pacman -S --needed --noconfirm nginx
 
-# Download an example site config
-curl --output /etc/nginx/sites-available/gitlab https://raw.github.com/gitlabhq/gitlab-recipes/master/nginx/gitlab
-ln -s /etc/nginx/sites-available/gitlab /etc/nginx/sites-enabled/gitlab
+echo "Downloadin an example site config"
+curl --output /etc/nginx/sites-available/gitlab https://raw.github.com/axilleas/gitlab-recipes/master/nginx/gitlab-ssl
+ln -s /etc/nginx/sites-available/gitlab /etc/nginx/sites-enabled/gitlab-ssl
 
-# Edit the config file to match your setup
-sed -i "s/YOUR_SERVER_IP:80/80/" /etc/nginx/sites-available/gitlab
-sed -i "s/YOUR_SERVER_FQDN/$FQDN/" /etc/nginx/sites-available/gitlab
+echo "Editing the config file to match your setup"
+sed -i "s/SERVER_FQDN/$FQDN/g" /etc/nginx/sites-available/gitlab-ssl
 
-# Restart and enable on boot
+echo "Restarting nginx and enable on boot"
 systemctl restart nginx
 systemctl enable nginx
 
