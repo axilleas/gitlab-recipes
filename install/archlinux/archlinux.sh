@@ -74,6 +74,10 @@ exit
 ## 3 Install and configure GitLab. Check status configuration. ##
 #################################################################
 
+## Add ruby exec to PATH ##
+#sudo -u git -H sh -c 'echo "export PATH=/home/git/.gem/ruby/1.9.1/bin:$PATH" >> /home/git/.bash_profile'
+#source /home/git/.bashrc
+
 cd /home/git
 sudo -u git -H git clone https://github.com/gitlabhq/gitlabhq.git gitlab
 cd gitlab/
@@ -107,7 +111,7 @@ echo "Starting redis server"
 systemctl enable redis
 systemctl start redis
 
-## Configure GitLab DB settings / Install Gems
+echo "Configuring GitLab DB settings / Installing Gems"
 
 if [ RUBY_DOCS_ENABLED -eq False ]; then
 
@@ -121,6 +125,8 @@ if [[ $DB -eq 'mysql' ]]; then
 
     pacman -S --needed --noconfirm mysql
     echo "Set mysql admin password before procceding"
+    systemctl start sshd.service
+    systemctl enable sshd.service
     sudo -u git cp config/database.yml.mysql config/database.yml
     sed -i "s/gitlabhq_production/$DB_NAME/" config/database.yml
     sed -i "s/root/$DB_GITLAB_USERNAME/" config/database.yml
@@ -145,7 +151,14 @@ sudo -u git -H bundle exec rake db:seed_fu RAILS_ENV=production
 sudo -u git -H bundle exec rake gitlab:setup RAILS_ENV=production
 
 
-## Check Application Status
+echo "Downloading gitlab and sidekiq systemd service files"
+curl --output /etc/systemd/system/gitlab.service https://raw.github.com/axilleas/gitlab-recipes/master/systemd/gitlab.service
+curl --output /etc/systemd/system/sidekiq.service https://raw.github.com/axilleas/gitlab-recipes/master/systemd/sidekiq.service
+
+systemctl start sidekiq.service gitlab.service
+systemctl enable sidekiq.service gitlab.service
+
+echo "Checking Application Status..."
 
 # Check if GitLab and its environment are configured correctly
 
@@ -153,7 +166,7 @@ sudo -u git -H bundle exec rake gitlab:setup RAILS_ENV=production
 
 # To make sure you didn't miss anything run a more thorough check with
 
-# sudo -u git -H bundle exec rake gitlab:check RAILS_ENV=production
+sudo -u git -H bundle exec rake gitlab:check RAILS_ENV=production
 
 
 # 7. Nginx
@@ -168,6 +181,12 @@ ln -s /etc/nginx/sites-available/gitlab /etc/nginx/sites-enabled/gitlab-ssl
 echo "Editing the config file to match your setup"
 sed -i "s/SERVER_FQDN/$FQDN/g" /etc/nginx/sites-available/gitlab-ssl
 
+echo "Creating ssl certificate under /etc/nginx/ssl"
+mkdir /etc/nginx/ssl
+cd /etc/nginx/ssl
+openssl req -new -x509 -nodes -days 3560 -out gitlab.crt -keyout gitlab.key
+chmod o-r gitlab.key
+
 echo "Restarting nginx and enable on boot"
 systemctl restart nginx
 systemctl enable nginx
@@ -181,31 +200,3 @@ echo "##################################"
 echo "## Email.....: admin@local.host ##"
 echo "## Password..: 5iveL!fe         ##"
 ehco "##################################"
-
-
-
--------OLD GUIDE---------
-
-
-## Add ruby exec to PATH ##
-sudo -u gitlab -H sh -c 'echo "export PATH=/home/gitlab/.gem/ruby/1.9.1/bin:$PATH" >> /home/gitlab/.bash_profile'
-#source /home/gitlab/.bashrc
-
-
-# Add python2.7 to ffi.rb (thanks to https://bbs.archlinux.org/viewtopic.php?pid=1143763#p1143763)
-sed -i "s/opts = {})/opts = {:python_exe => 'python2.7'})/g" /home/gitlab/gitlab/vendor/bundle/ruby/1.9.1/bundler/gems/pygments.rb-2cada028da50/lib/pygments/ffi.rb
-
-
-##################
-## 3.4 Setup DB ##
-##################
-
-rc.d start sudo -u gitlab bundle exec rake gitlab:app:setup RAILS_ENV=production
-
-
-#########################
-## 3.5 Checking status ##
-#########################
-
-
-

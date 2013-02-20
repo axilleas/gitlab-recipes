@@ -7,16 +7,18 @@
 
 [Unit]
 Description=Self Hosted Git Management
-Requires=mysql.service redis.service
-After=mysql.service redis.service
+Requires=mysqld.service redis.service
+After=mysqld.service redis.service
 Wants=postfix.service sidekiq.service
 
 [Service]
 Type=forking
 User=git
 WorkingDirectory=/home/git/gitlab
-ExecStart=/home/git/gitlab/script/rails server -d -e production
-PIDFile=/home/git/gitlab/tmp/pids/server.pid
+PIDFile=/home/git/gitlab/tmp/pids/unicorn.pid
+ExecStart=/bin/su - git -c "nohup bundle exec unicorn_rails -c config/unicorn.rb -E production"
+#ExecStart=/home/git/gitlab/script/rails server -d -e production
+ExecStop=/bin/kill -QUIT `cat PIDFile`
 
 [Install]
 WantedBy=multi-user.target
